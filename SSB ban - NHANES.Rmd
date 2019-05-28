@@ -293,4 +293,6 @@ imp_nhanes_complete = map(imp_nhanes, mice::complete)
 imp_nhanes = map2(.x = seq(1,10), .y = imp_nhanes_complete, ~mutate(.y, imp_id = as.character(.x)))
 imp_nhanes = bind_rows(imp_nhanes)
 summary(imp_nhanes)
+write_csv(imp_nhanes, path = "imp_nhanes.csv")
+
 ```
