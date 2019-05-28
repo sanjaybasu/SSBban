@@ -6,9 +6,13 @@ Sugar-sweetened beverages (SSBs) such as carbonated sodas are associated with an
 Sanjay Basu1,2,3*, Laurie Jacobs4, Elissa Epel4, Dean Schillinger5, Laura Schmidt4
 
 1 Research and Analytics, Collective Health
+
 2 Center for Primary Care, Harvard Medical School
+
 3 School of Public Health, Imperial College London
+
 4 Philip R. Lee Institute for Health Policy Studies, Department of Anthropology, History and Social Medicine, and Global Health Sciences, University of California San Francisco
+
 5 Division of General Internal Medicine, University of California San Francisco and Center for Vulnerable Populations, Zuckerberg San Francisco General Hospital 
 
 *sanjay_basu@hms.harvard.edu
