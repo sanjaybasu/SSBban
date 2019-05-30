@@ -1,0 +1,109 @@
+---
+title: "SSB ban - Census validation"
+author: "Sanjay Basu"
+date: "5/30/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages('tidyverse', repos='http://cran.us.r-project.org')
+install.packages('tidycensus', repos='http://cran.us.r-project.org')
+
+library(tidyverse)
+library(tidycensus)
+```
+
+## Compare NHANES to Census
+
+for face validity
+
+```{r ACS 2017 download}
+census_api_key("502c9ebce6cbb78e55b5799866a5771ad6411885", install=T, overwrite=T)
+readRenviron("~/.Renviron")
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+
+```
+
+## Extract relevant ACS variables
+
+civilian employed population by age and sex
+
+```{r Age/sex distribution in ACS of privately employed}
+emp <- get_acs(geography = "us", 
+               variables = c(m_16_19 = "B23001_007",
+                             m_20_21 = "B23001_014",
+                             m_22_24 = "B23001_021",
+                             m_25_29 = "B23001_028",
+                             m_30_34 = "B23001_035",
+                             m_35_44 = "B23001_042",
+                             m_45_54 = "B23001_049",
+                             m_55_59 = "B23001_056",
+                             m_60_61 = "B23001_063",
+                             m_62_64 = "B23001_070",
+                             m_65_69 = "B23001_075",
+                             m_70_74 = "B23001_080",
+                             m_75_99 = "B23001_085",
+                             f_16_19 = "B23001_093",
+                             f_20_21 = "B23001_100",
+                             f_22_24 = "B23001_107",
+                             f_25_29 = "B23001_114",
+                             f_30_34 = "B23001_121",
+                             f_35_44 = "B23001_128",
+                             f_45_54 = "B23001_135",
+                             f_55_59 = "B23001_142",
+                             f_60_61 = "B23001_149",
+                             f_62_64 = "B23001_156",
+                             f_65_69 = "B23001_161",
+                             f_70_74 = "B23001_166",
+                             f_75_99 = "B23001_171")) 
+emp$prop = emp$estimate/sum(emp$estimate)
+```
+
+## Compare to NHANES
+
+T-test for difference, with comp matrix as final results by age/sex category
+
+```{r NHANES vs Census}
+impnhanes = read_csv("imp_nhanes.csv")
+tally = impnhanes %>%
+  mutate(m_16_19 = (female==0)&(age>=16)&(age<=19),
+         m_20_21 = (female==0)&(age>=20)&(age<=21),
+         m_22_24 = (female==0)&(age>=22)&(age<=24),
+         m_25_29 = (female==0)&(age>=25)&(age<=29),
+         m_30_34 = (female==0)&(age>=30)&(age<=34),
+         m_35_44 = (female==0)&(age>=35)&(age<=44),
+         m_45_54 = (female==0)&(age>=45)&(age<=54),
+         m_55_59 = (female==0)&(age>=55)&(age<=59),
+         m_60_61 = (female==0)&(age>=60)&(age<=61),
+         m_62_64 = (female==0)&(age>=62)&(age<=64),
+         m_65_69 = (female==0)&(age>=65)&(age<=69),
+         m_70_74 = (female==0)&(age>=70)&(age<=74),
+         m_75_99 = (female==0)&(age>=75)&(age<=99),
+         f_16_19 = (female==1)&(age>=16)&(age<=19),
+         f_20_21 = (female==1)&(age>=20)&(age<=21),
+         f_22_24 = (female==1)&(age>=22)&(age<=24),
+         f_25_29 = (female==1)&(age>=25)&(age<=29),
+         f_30_34 = (female==1)&(age>=30)&(age<=34),
+         f_35_44 = (female==1)&(age>=35)&(age<=44),
+         f_45_54 = (female==1)&(age>=45)&(age<=54),
+         f_55_59 = (female==1)&(age>=55)&(age<=59),
+         f_60_61 = (female==1)&(age>=60)&(age<=61),
+         f_62_64 = (female==1)&(age>=62)&(age<=64),
+         f_65_69 = (female==1)&(age>=65)&(age<=69),
+         f_70_74 = (female==1)&(age>=70)&(age<=74),
+         f_75_99 = (female==1)&(age>=75)&(age<=99)) %>%
+  select(matches("^m_|f_"))
+
+
+cols <- sapply(tally, is.logical)
+tally[,cols] <- lapply(tally[,cols], as.numeric)
+nhanes = colSums(tally)/dim(tally)[1]
+census = (cbind(emp$variable, emp$prop))
+comp = (cbind(census, nhanes))
+print(comp)
+t.test(nhanes,emp$prop,paired=TRUE)
+```
+
