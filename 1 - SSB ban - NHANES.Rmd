@@ -286,6 +286,7 @@ summary(nhanes)
 10-fold multiple imputation w/ chained equations
 
 ```{r imputation}
+set.seed(123)
 plan(multiprocess)
 start = Sys.time()
 imp_nhanes = future_map(rep(1, 10), ~mice(data = nhanes, m = ., maxit = 100, printFlag = FALSE))
@@ -295,6 +296,6 @@ imp_nhanes_complete = map(imp_nhanes, mice::complete)
 imp_nhanes = map2(.x = seq(1,10), .y = imp_nhanes_complete, ~mutate(.y, imp_id = as.character(.x)))
 imp_nhanes = bind_rows(imp_nhanes)
 summary(imp_nhanes)
-write_csv(imp_nhanes, path = "imp_nhanes.csv")
+write_csv(imp_nhanes, path = "~/Box/Analytics Team/Research/Research projects/SSB ban/imp_nhanes.csv")
 
 ```
