@@ -1,0 +1,395 @@
+---
+title: "4 - SSB ban - simulation"
+author: "Sanjay Basu"
+date: "6/3/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages('tidyverse', repos='http://cran.us.r-project.org')
+install.packages('matrixStats', repos='http://cran.us.r-project.org')
+install.packages('svMisc', repos='http://cran.us.r-project.org')
+install.packages('doBy', repos='http://cran.us.r-project.org')
+library(tidyverse)
+library(matrixStats)
+library(svMisc)
+library(doBy)
+```
+
+# calculate costs on 10 year and lifetime horizons
+simulate people aging and getting incident conditions, then mortality
+calculate cost and QALYs per prevalent conditions x years of those conditions
+people in rows, condition for each year in columns
+if person already has condition in current year, they continue to have condition in future years, except for dental [which recurs per annum]
+IHME input data, from https://vizhub.healthdata.org/gbd-compare/
+incidence and mortality organized as: male age 15-49, female age 15-49, male age 50-69, female age 50-69, male age 70+, female age 70+
+delta: RRR after SSB ban
+
+```{r import from NHANES.R}
+imp_nhanes = read_csv("~/Box/Analytics Team/Research/Research projects/SSB ban/imp_nhanes.csv")
+yrs = 100
+
+alive = matrix(1,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_obese = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_chd = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_str = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_dm = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_ckd = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_den = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+alive_post = matrix(1,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_obese_post = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_chd_post = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_str_post = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_dm_post = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_ckd_post = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+prev_den_post = matrix(0,nrow=length(imp_nhanes$SEQN),ncol=yrs)
+
+prev_obese[,1:yrs] = (imp_nhanes$bmi>=30)
+prev_chd[,1:yrs] = (imp_nhanes$chd==1)
+prev_str[,1:yrs] = (imp_nhanes$str==1)
+prev_dm[,1:yrs] = (imp_nhanes$dm==1)
+prev_ckd[,1:yrs] = (imp_nhanes$ckd==1)
+prev_den[,1] = (imp_nhanes$dental==1)
+
+prev_obese_post[,1:yrs] = (imp_nhanes$bmi>=30)
+prev_chd_post[,1:yrs] = (imp_nhanes$chd==1)
+prev_str_post[,1:yrs] = (imp_nhanes$str==1)
+prev_dm_post[,1:yrs] = (imp_nhanes$dm==1)
+prev_ckd_post[,1:yrs] = (imp_nhanes$ckd==1)
+prev_den_post[,1] = (imp_nhanes$dental==1)
+
+wt_delta_peryr = coef(lm(imp_nhanes$wtkg ~ imp_nhanes$age))[2]
+
+inc_chd = c(84.73, 35.32, 749.99, 334.72, 1928.63, 1326.84)/1e5
+inc_str = c(39.46, 39.85, 293.61, 243.91, 932.11, 986.96)/1e5
+inc_dm = c(1.5, 1, 29, 17.73, 298.95, 199)/1e5
+inc_ckd = c(63.6, 98.7, 757.26, 796.03, 2096.14, 2245.7)/1e5
+inc_den = c(44725, 45662, 23326, 24596, 16996, 17104)/1e5
+
+mort_obese = c(19.99, 9.8, 224.5, 130.44, 711.26, 762.99)/1e5
+mort_chd = c(16.12, 6.07, 222.08, 89.68, 1307.88, 1098.13)/1e5
+mort_str = c(4.03, 3.3, 45.28, 32.27, 370.56, 440.72)/1e5
+mort_dm = c(1.5, 1, 29, 17.73, 121.65, 98.42)/1e5
+mort_ckd = c(2.56, 1.8, 29.07, 20.89, 209.09, 169.07)/1e5
+mort_all = c(205, 109, 1139, 711, 5936, 5351)/1e5 
+
+delta_ssb = 1.5 # ounces/person/day
+cals_per_ounce = 11.7 # calories/ounce SSBs
+delta_wtkg = delta_ssb*cals_per_ounce*1/10*0.453592 # 10 calories = 1 pound = 0.45 kg, https://www.healthaffairs.org/doi/full/10.1377/hlthaff.2011.0410
+delta_chd = (1-0.023/37*29.57353*delta_ssb) # 0.023 for 37ml, 29.57353 mL per ounce, https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1002158#sec018
+delta_str = (1-0.011/37*29.57353*delta_ssb) # 0.011 for 37ml, 29.57353 mL per ounce, https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1002158#sec018
+delta_dm = (1-0.18/250*29.57*delta_ssb) # 0.18 for 250 ml
+delta_ckd = (1-0.20/12*delta_ssb) # 0.20 for serving
+delta_den = (1-0.30/12*delta_ssb) # 0.20 for serving
+delta_mort = (1-0.17/12*delta_ssb) # 0.24 for 12oz serving
+```
+
+```{r iters}
+iters = 1
+attach(imp_nhanes)
+n= length(imp_nhanes$SEQN)
+tot_qalys_10 = rep(0,10000)
+tot_costs_10 = rep(0,10000)
+tot_qalys_lt = rep(0,10000)
+tot_costs_lt = rep(0,10000)
+
+tot_qalys_10_post = rep(0,10000)
+tot_costs_10_post = rep(0,10000)
+tot_qalys_lt_post = rep(0,10000)
+tot_costs_lt_post = rep(0,10000)
+
+icer_10 = rep(0,10000)
+icer_lt = rep(0,10000)
+
+
+set.seed(100)
+start = Sys.time()
+
+for (j in 1:iters){
+  progress(j, progress.bar = T)
+  age = imp_nhanes$age
+for (i in 2:yrs){
+  age = age+1
+  
+  # add new incidence to prevalence
+  prev_obese[,i] = (((wtkg+wt_delta_peryr*i)/(htm^2))>=30)
+  prev_obese_post[,i] = (((wtkg-delta_wtkg+wt_delta_peryr*i)/(htm^2))>=30)
+  
+  prob_chd = (age>=15)*(age<=49)*(female==0)*inc_chd[1]+
+    (age>=15)*(age<=49)*(female==1)*inc_chd[2]+
+    (age>=50)*(age<=69)*(female==0)*inc_chd[3]+
+    (age>=50)*(age<=69)*(female==1)*inc_chd[4]+
+    (age>=70)*(female==0)*inc_chd[5]+
+    (age>=70)*(female==1)*inc_chd[6]
+  prev_chd[,i] = rowMaxs(cbind(prev_chd[,(i-1)], rbinom(n, 1, prob_chd)))
+  prev_chd_post[,i] = rowMaxs(cbind(prev_chd[,(i-1)], rbinom(n, 1, prob_chd*delta_chd)))
+  
+  prob_str = (age>=15)*(age<=49)*(female==0)*inc_str[1]+
+    (age>=15)*(age<=49)*(female==1)*inc_str[2]+
+    (age>=50)*(age<=69)*(female==0)*inc_str[3]+
+    (age>=50)*(age<=69)*(female==1)*inc_str[4]+
+    (age>=70)*(female==0)*inc_str[5]+
+    (age>=70)*(female==1)*inc_str[6]
+  prev_str[,i] = rowMaxs(cbind(prev_str[,(i-1)], rbinom(n, 1, prob_str)))
+  prev_str_post[,i] = rowMaxs(cbind(prev_str[,(i-1)], rbinom(n, 1, prob_str*delta_str)))
+  
+  prob_dm = (age>=15)*(age<=49)*(female==0)*inc_dm[1]+
+    (age>=15)*(age<=49)*(female==1)*inc_dm[2]+
+    (age>=50)*(age<=69)*(female==0)*inc_dm[3]+
+    (age>=50)*(age<=69)*(female==1)*inc_dm[4]+
+    (age>=70)*(female==0)*inc_dm[5]+
+    (age>=70)*(female==1)*inc_dm[6]
+  prev_dm[,i] = rowMaxs(cbind(prev_dm[,(i-1)], rbinom(n, 1, prob_dm)))
+  prev_dm_post[,i] = rowMaxs(cbind(prev_dm[,(i-1)], rbinom(n, 1, prob_dm*delta_dm)))
+  
+  prob_ckd = (age>=15)*(age<=49)*(female==0)*inc_ckd[1]+
+    (age>=15)*(age<=49)*(female==1)*inc_ckd[2]+
+    (age>=50)*(age<=69)*(female==0)*inc_ckd[3]+
+    (age>=50)*(age<=69)*(female==1)*inc_ckd[4]+
+    (age>=70)*(female==0)*inc_ckd[5]+
+    (age>=70)*(female==1)*inc_ckd[6]
+  prev_ckd[,i] = rowMaxs(cbind(prev_ckd[,(i-1)], rbinom(n, 1, prob_ckd)))
+  prev_ckd_post[,i] = rowMaxs(cbind(prev_ckd[,(i-1)], rbinom(n, 1, prob_ckd*delta_ckd)))
+  
+  prob_den = (age>=15)*(age<=49)*(female==0)*inc_den[1]+
+    (age>=15)*(age<=49)*(female==1)*inc_den[2]+
+    (age>=50)*(age<=69)*(female==0)*inc_den[3]+
+    (age>=50)*(age<=69)*(female==1)*inc_den[4]+
+    (age>=70)*(female==0)*inc_den[5]+
+    (age>=70)*(female==1)*inc_den[6]
+  prev_den[,i] = rbinom(n, 1, prob_den) # dental prev is annual
+  prev_den_post[,i] = rbinom(n, 1, prob_den*delta_den) 
+  
+  # track mortality including co-morbid risks by calculating mort risk by indiv given additivity
+  prob_mort = (age>=15)*(age<=49)*(female==0)*(mort_obese[1]*prev_obese[,i]+mort_chd[1]*prev_chd[,i]+mort_str[1]*prev_str[,i]+mort_dm[1]*prev_dm[,i]+mort_ckd[1]*prev_ckd[,i]+mort_all[1])+
+    (age>=15)*(age<=49)*(female==1)*((mort_obese[2]*prev_obese[,i]+mort_chd[2]*prev_chd[,i]+mort_str[2]*prev_str[,i]+mort_dm[2]*prev_dm[,i]+mort_ckd[2]*prev_ckd[,i]+mort_all[2]))+
+    (age>=50)*(age<=69)*(female==0)*((mort_obese[3]*prev_obese[,i]+mort_chd[3]*prev_chd[,i]+mort_str[3]*prev_str[,i]+mort_dm[3]*prev_dm[,i]+mort_ckd[3]*prev_ckd[,i]+mort_all[3]))+
+    (age>=50)*(age<=69)*(female==1)*((mort_obese[4]*prev_obese[,i]+mort_chd[4]*prev_chd[,i]+mort_str[4]*prev_str[,i]+mort_dm[4]*prev_dm[,i]+mort_ckd[4]*prev_ckd[,i]+mort_all[4]))+
+    (age>=70)*(female==0)*((mort_obese[5]*prev_obese[,i]+mort_chd[5]*prev_chd[,i]+mort_str[5]*prev_str[,i]+mort_dm[5]*prev_dm[,i]+mort_ckd[5]*prev_ckd[,i]+mort_all[5]))+
+    (age>=70)*(female==1)*((mort_obese[6]*prev_obese[,i]+mort_chd[6]*prev_chd[,i]+mort_str[6]*prev_str[,i]+mort_dm[6]*prev_dm[,i]+mort_ckd[6]*prev_ckd[,i]+mort_all[6]))
+  alive[,i] = rowMins(cbind(alive[,(i-1)], 1-rbinom(n, 1, prob_mort)))
+  alive_post[,i] = rowMins(cbind(alive_post[,(i-1)], 1-rbinom(n, 1, prob_mort*delta_mort)))
+  
+}
+
+
+# estimate QALYS, discounted, then cost from MEPS, discounted
+#obesity disutil from Table 2 from: https://asmbs.org/app/uploads/2011/05/tseng-cea.pdf
+#other utils from Table 2 of : https://www.thelancet.com/action/showPdf?pii=S2214-109X%2815%2900069-8
+#w/ weighting by duration for acute episodes and equal probabilities across condition severity
+#based on RECODe equations, typically 12% risk of nephropathy, 6% retinopathy, and 8% neuropathy for this pop
+#CKD by stage
+
+
+util_obese = matrix(c(0.929,0.912,0.886,0.85,0.805,0.908,0.889,0.857,0.813,0.755,
+                      0.903,0.88,0.853,0.823,0.79,0.875,0.846,0.811,0.77,0.722,
+                      0.877,0.848,0.821,0.797,0.775,0.842,0.804,0.765,0.727,0.688,
+                      0.851,0.816,0.789,0.77,0.76,0.809,0.761,0.719,0.684,0.654,
+                      0.825,0.784,0.756,0.743,0.745,0.775,0.718,0.673,0.641,0.621,
+                      0.799,0.752,0.724,0.717,0.73,0.742,0.675,0.627,0.598,0.587),ncol=10,nrow=6)
+
+
+dist_obese = matrix(c(sum((bmi>=25)&(bmi<=27.5)&(age>40)&(female==0)), sum((bmi>=25)&(bmi<=27.5)&(age>40)&(age<=50)&(female==0)), sum((bmi>=25)&(bmi<=27.5)&(age>50)&(age<=60)&(female==0)), sum((bmi>=25)&(bmi<=27.5)&(age>60)&(age<=70)&(female==0)), sum((bmi>=25)&(bmi<=27.5)&(age>70)&(female==0)),
+                      sum((bmi>=25)&(bmi<=27.5)&(age>40)&(female==1)), sum((bmi>=25)&(bmi<=27.5)&(age>40)&(age<=50)&(female==1)), sum((bmi>=25)&(bmi<=27.5)&(age>50)&(age<=60)&(female==1)), sum((bmi>=25)&(bmi<=27.5)&(age>60)&(age<=70)&(female==1)), sum((bmi>=25)&(bmi<=27.5)&(age>70)&(female==1)),
+                      sum((bmi>=27.5)&(bmi<=32.5)&(age>40)&(female==0)), sum((bmi>=27.5)&(bmi<=32.5)&(age>40)&(age<=50)&(female==0)), sum((bmi>=27.5)&(bmi<=32.5)&(age>50)&(age<=60)&(female==0)), sum((bmi>=27.5)&(bmi<=32.5)&(age>60)&(age<=70)&(female==0)), sum((bmi>=27.5)&(bmi<=32.5)&(age>70)&(female==0)),
+                      sum((bmi>=27.5)&(bmi<=32.5)&(age>40)&(female==1)), sum((bmi>=27.5)&(bmi<=32.5)&(age>40)&(age<=50)&(female==1)), sum((bmi>=27.5)&(bmi<=32.5)&(age>50)&(age<=60)&(female==1)), sum((bmi>=27.5)&(bmi<=32.5)&(age>60)&(age<=70)&(female==1)), sum((bmi>=27.5)&(bmi<=32.5)&(age>70)&(female==1)),
+                      sum((bmi>=32.5)&(bmi<=37.5)&(age>40)&(female==0)), sum((bmi>=32.5)&(bmi<=37.5)&(age>40)&(age<=50)&(female==0)), sum((bmi>=32.5)&(bmi<=37.5)&(age>50)&(age<=60)&(female==0)), sum((bmi>=32.5)&(bmi<=37.5)&(age>60)&(age<=70)&(female==0)), sum((bmi>=32.5)&(bmi<=37.5)&(age>70)&(female==0)),
+                      sum((bmi>=32.5)&(bmi<=37.5)&(age>40)&(female==1)), sum((bmi>=32.5)&(bmi<=37.5)&(age>40)&(age<=50)&(female==1)), sum((bmi>=32.5)&(bmi<=37.5)&(age>50)&(age<=60)&(female==1)), sum((bmi>=32.5)&(bmi<=37.5)&(age>60)&(age<=70)&(female==1)), sum((bmi>=32.5)&(bmi<=37.5)&(age>70)&(female==1)),
+                      sum((bmi>=37.5)&(bmi<=42.5)&(age>40)&(female==0)), sum((bmi>=37.5)&(bmi<=42.5)&(age>40)&(age<=50)&(female==0)), sum((bmi>=37.5)&(bmi<=42.5)&(age>50)&(age<=60)&(female==0)), sum((bmi>=37.5)&(bmi<=42.5)&(age>60)&(age<=70)&(female==0)), sum((bmi>=37.5)&(bmi<=42.5)&(age>70)&(female==0)),
+                      sum((bmi>=37.5)&(bmi<=42.5)&(age>40)&(female==1)), sum((bmi>=37.5)&(bmi<=42.5)&(age>40)&(age<=50)&(female==1)), sum((bmi>=37.5)&(bmi<=42.5)&(age>50)&(age<=60)&(female==1)), sum((bmi>=37.5)&(bmi<=42.5)&(age>60)&(age<=70)&(female==1)), sum((bmi>=37.5)&(bmi<=42.5)&(age>70)&(female==1)),
+                      sum((bmi>=42.5)&(bmi<=47.5)&(age>40)&(female==0)), sum((bmi>=42.5)&(bmi<=47.5)&(age>40)&(age<=50)&(female==0)), sum((bmi>=42.5)&(bmi<=47.5)&(age>50)&(age<=60)&(female==0)), sum((bmi>=42.5)&(bmi<=47.5)&(age>60)&(age<=70)&(female==0)), sum((bmi>=42.5)&(bmi<=47.5)&(age>70)&(female==0)),
+                      sum((bmi>=42.5)&(bmi<=47.5)&(age>40)&(female==1)), sum((bmi>=42.5)&(bmi<=47.5)&(age>40)&(age<=50)&(female==1)), sum((bmi>=42.5)&(bmi<=47.5)&(age>50)&(age<=60)&(female==1)), sum((bmi>=42.5)&(bmi<=47.5)&(age>60)&(age<=70)&(female==1)), sum((bmi>=42.5)&(bmi<=47.5)&(age>70)&(female==1)),
+                      sum((bmi>=47.5)&(age>40)&(female==0)), sum((bmi>=47.5)&(age>40)&(age<=50)&(female==0)), sum((bmi>=47.5)&(age>50)&(age<=60)&(female==0)), sum((bmi>=47.5)&(age>60)&(age<=70)&(female==0)), sum((bmi>=47.5)&(age>70)&(female==0)),
+                      sum((bmi>=47.5)&(age>40)&(female==1)), sum((bmi>=47.5)&(age>40)&(age<=50)&(female==1)), sum((bmi>=47.5)&(age>50)&(age<=60)&(female==1)), sum((bmi>=47.5)&(age>60)&(age<=70)&(female==1)), sum((bmi>=47.5)&(age>70)&(female==1))),ncol=10,nrow=6)
+
+comp_util_obese = sum(util_obese*dist_obese/(sum(dist_obese)))
+
+util_chd = 1-c(.432, .074, .033, .08, .167, .224, .014, .041, .072, .179)
+dist_chd = c(2/28, 25/28, 1/3, 1/3, 1/3, 1, 1, 1/3, 1/3, 1/3)
+comp_util_chd = sum(util_chd*dist_chd/(sum(dist_chd)))
+
+util_str = 1-c(.019, .070, .316, .552, .588)
+dist_str = c(1/5, 1/5, 1/5, 1/5, 1/5)
+comp_util_str = sum(util_str*dist_str/(sum(dist_str)))
+
+util_dm = 1-c(0, .133, .104, .024, .571)
+dist_dm = c(0.8, .08, .12/3, .12/3, .12/3)
+comp_util_dm = sum(util_dm*dist_dm/(sum(dist_dm)))
+
+util_ckd = 1-c(0, 0, 0, .104, .024, .571)
+dist_ckd = c((0.199-0.001)/3, (0.199-0.001)/3,(0.199-0.001)/3, 0.1029/100/3, 0.1029/100/3, 0.1029/100/3) #https://nccd.cdc.gov/CKD/detail.aspx?Qnum=Q372
+comp_util_ckd  = sum(util_ckd *dist_ckd /(sum(dist_ckd )))
+
+comp_util_den = 0.01
+
+
+qalys = (1*(1-prev_obese)+comp_util_obese*prev_obese+
+  1*(1-prev_chd)+comp_util_chd*prev_chd+
+  1*(1-prev_str)+comp_util_str*prev_str+
+  1*(1-prev_dm)+comp_util_dm*prev_dm+
+  1*(1-prev_ckd)+comp_util_ckd*prev_ckd+
+  1*(1-prev_den)+comp_util_den*prev_den)/6*alive
+qalys_post = (1*(1-prev_obese_post)+comp_util_obese*prev_obese_post+
+           1*(1-prev_chd_post)+comp_util_chd*prev_chd_post+
+           1*(1-prev_str_post)+comp_util_str*prev_str_post+
+           1*(1-prev_dm_post)+comp_util_dm*prev_dm_post+
+           1*(1-prev_ckd_post)+comp_util_ckd*prev_ckd_post+
+           1*(1-prev_den_post)+comp_util_den*prev_den_post)/6*alive_post
+
+costs_obese = 1429*1.27 #2006 costs updated to 2019, Exhibit 1 of: https://www.healthaffairs.org/doi/pdf/10.1377/hlthaff.28.5.w822
+
+#weighted by typical duration of employed vs retirement for private vs Medicare (24 vs 13)
+costs_chd = 3966*1.08  # 2015 costs updated to 2019; from MEPS: https://meps.ahrq.gov/mepstrends/hc_cond/
+costs_str = 7149*1.08*24/(24+13)+9548*1.08*13/(24+13) # insufficient sample from employed, using not employed stat
+costs_dm = 2700*1.08*24/(24+13)+2893*1.08*13/(24+13)
+costs_ckd = 4497*1.08*24/(24+13)+5301*1.08*13/(24+13)
+costs_den = 1467*1.06 #2016 costs updated to 2019; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5010502/
+
+prod_obese = 24/(24+13)*983*1.04 # updated from 2017 to 2019 $, average from microeconomic findings section of: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5640019/
+prod_chd = 24/(24+13)*(281-60) #during first year of f/up, table 4 from: https://bmchealthservres.biomedcentral.com/articles/10.1186/s12913-015-0925-x
+prod_str = prod_chd
+prod_dm = 24/(24+13)*599 # mean of work loss rows from table 2 from: http://care.diabetesjournals.org/content/25/1/23#T2
+prod_ckd = 24/(24+13)*13538/10*1.06 # mean of prod cost from 'healthcare and societal savings' section of this article for 10yrs, converted from 2016 euros to 2019 USD: https://www.karger.com/Article/FullText/446548
+prod_den = 148*1.08 # 2015 costs updated to 2019; appendix table 5 from: https://www.ncbi.nlm.nih.gov/pubmed/29342371
+
+costs = ((costs_obese+prod_obese)*prev_obese+
+           (costs_chd+prod_chd)*prev_chd+
+           (costs_str+prod_str)*prev_str+
+           (costs_dm+prod_dm)*prev_dm+
+           (costs_ckd+prod_ckd)*prev_ckd+
+           (costs_den+prod_den)*prev_den)/6*alive
+costs_post = ((costs_obese+prod_obese)*prev_obese_post+
+           (costs_chd+prod_chd)*prev_chd_post+
+           (costs_str+prod_str)*prev_str_post+
+           (costs_dm+prod_dm)*prev_dm_post+
+           (costs_ckd+prod_ckd)*prev_ckd_post+
+           (costs_den+prod_den)*prev_den_post)/6*alive_post
+
+
+discount = matrix(rep((1/(1.03^(1:yrs))),length(imp_nhanes$SEQN)),ncol=yrs,byrow=T) # discounting and integration, 10 years and lifetime
+
+# attrition rate for private employers [applies only to 10-year employer perspective] = 23%, https://www.imercer.com/content/article/employee-turnover.aspx
+tot_qalys_10[j] = sum((qalys[,1:10])*discount[,1:10])*(1-.23)/dim(qalys)[1]*10000 # per 10k
+tot_costs_10[j] = sum((costs[,1:10])*discount[,1:10]*privins)*(1-.23)/dim(costs)[1]*10000
+tot_qalys_lt[j] = sum((qalys)*discount)/dim(qalys)[1]*10000
+tot_costs_lt[j] = sum((costs)*discount)/dim(costs)[1]*10000
+
+tot_qalys_10_post[j] = sum((qalys_post[,1:10])*discount[,1:10])*(1-.23)/dim(qalys_post)[1]*10000
+tot_costs_10_post[j] = sum((costs_post[,1:10])*discount[,1:10]*privins)*(1-.23)/dim(costs_post)[1]*10000
+tot_qalys_lt_post[j] = sum((qalys_post)*discount)/dim(qalys_post)[1]*10000
+tot_costs_lt_post[j] = sum((costs_post)*discount)/dim(costs_post)[1]*10000
+
+icer_10[j] = (tot_costs_10_post[j]-tot_costs_10[j])/(tot_qalys_10_post[j]-tot_qalys_10[j])
+icer_lt[j] = (tot_costs_lt_post[j]-tot_costs_lt[j])/(tot_qalys_lt_post[j]-tot_qalys_lt[j])
+
+
+dfcostsper10k = data.frame(rowSums((costs_obese+prod_obese)*prev_obese*alive)/dim(alive)[1]*10000,
+                          rowSums( (costs_chd+prod_chd)*prev_chd*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_str+prod_str)*prev_str*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_dm+prod_dm)*prev_dm*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_ckd+prod_ckd)*prev_ckd*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_den+prod_den)*prev_den*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_obese+prod_obese)*prev_obese_post*alive)/dim(alive_post)[1]*10000,
+                          rowSums((costs_chd+prod_chd)*prev_chd_post*alive)/dim(alive_post)[1]*10000,
+                          rowSums((costs_str+prod_str)*prev_str_post*alive)/dim(alive_post)[1]*10000,
+                          rowSums((costs_dm+prod_dm)*prev_dm_post*alive)/dim(alive_post)[1]*10000,
+                          rowSums((costs_ckd+prod_ckd)*prev_ckd_post*alive)/dim(alive_post)[1]*10000,
+                          rowSums((costs_den+prod_den)*prev_den_post*alive)/dim(alive_post)[1]*10000,
+                          rowSums((costs_obese+prod_obese)*prev_obese_post*alive)/dim(alive_post)[1]*10000-rowSums((costs_obese+prod_obese)*prev_obese*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_chd+prod_chd)*prev_chd_post*alive)/dim(alive_post)[1]*10000-rowSums( (costs_chd+prod_chd)*prev_chd*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_str+prod_str)*prev_str_post*alive)/dim(alive_post)[1]*10000-rowSums((costs_str+prod_str)*prev_str*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_dm+prod_dm)*prev_dm_post*alive)/dim(alive_post)[1]*10000-rowSums((costs_dm+prod_dm)*prev_dm*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_ckd+prod_ckd)*prev_ckd_post*alive)/dim(alive_post)[1]*10000-rowSums((costs_ckd+prod_ckd)*prev_ckd*alive)/dim(alive)[1]*10000,
+                          rowSums((costs_den+prod_den)*prev_den_post*alive)/dim(alive_post)[1]*10000-rowSums((costs_obese+prod_obese)*prev_obese_post*alive)/dim(alive_post)[1]*10000,
+                          white,black,asian,other,hisp,mgmt,whcol,blcol)
+colnames(dfcostsper10k)=c('obese','chd','str','dm','ckd','den','obese_post','chd_post','str_post','dm_post','ckd_post','den_post','obese_postmpre','chd_postmpre','str_postmpre','dm_postmpre','ckd_postmpre','den_postmpre','white','black','asian','other','hisp','mgmt','whcol','blcol')
+obese_cost_pre=summaryBy(obese~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6] #other non-hisp, hisp, asian, black, white; mean then sd
+chd_cost_pre=summaryBy(chd~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+str_cost_pre=summaryBy(str~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+dm_cost_pre=summaryBy(dm~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+ckd_cost_pre=summaryBy(ckd~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+den_cost_pre=summaryBy(den~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+obese_cost_post=summaryBy(obese_post~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+chd_cost_post=summaryBy(chd_post~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+str_cost_post=summaryBy(str_post~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+dm_cost_post=summaryBy(dm_post~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+ckd_cost_post=summaryBy(ckd_post~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+den_cost_post=summaryBy(den_post~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+obese_cost_postmpre=summaryBy(obese_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+chd_cost_postmpre=summaryBy(chd_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+str_cost_postmpre=summaryBy(str_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+dm_cost_postmpre=summaryBy(dm_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+ckd_cost_postmpre=summaryBy(ckd_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+den_cost_postmpre=summaryBy(den_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
+
+# add in same by occ class
+
+dfqalysper10k = data.frame(rowSums((1*(1-prev_obese)+comp_util_obese*prev_obese)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_chd)+comp_util_chd*prev_chd)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_str)+comp_util_str*prev_str)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_dm)+comp_util_dm*prev_dm)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_ckd)+comp_util_ckd*prev_ckd)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_den)+comp_util_den*prev_den)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_obese_post)+comp_util_obese*prev_obese_post)*alive_post)/dim(alive_post)[1]*10000,
+                          rowSums((1*(1-prev_chd_post)+comp_util_chd*prev_chd_post)*alive_post)/dim(alive_post)[1]*10000,
+                          rowSums((1*(1-prev_str_post)+comp_util_str*prev_str_post)*alive_post)/dim(alive_post)[1]*10000,
+                          rowSums((1*(1-prev_dm_post)+comp_util_dm*prev_dm_post)*alive_post)/dim(alive_post)[1]*10000,
+                          rowSums((1*(1-prev_ckd_post)+comp_util_ckd*prev_ckd_post)*alive_post)/dim(alive_post)[1]*10000,
+                          rowSums((1*(1-prev_den_post)+comp_util_den*prev_den_post)*alive_post)/dim(alive_post)[1]*10000,
+                          rowSums((1*(1-prev_obese_post)+comp_util_obese*prev_obese_post)*alive_post)/dim(alive_post)[1]*10000-rowSums((1*(1-prev_obese)+comp_util_obese*prev_obese)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_chd_post)+comp_util_chd*prev_chd_post)*alive_post)/dim(alive_post)[1]*10000-rowSums((1*(1-prev_chd)+comp_util_chd*prev_chd)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_str_post)+comp_util_str*prev_str_post)*alive_post)/dim(alive_post)[1]*10000-rowSums((1*(1-prev_str)+comp_util_str*prev_str)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_dm_post)+comp_util_dm*prev_dm_post)*alive_post)/dim(alive_post)[1]*10000-rowSums((1*(1-prev_dm)+comp_util_dm*prev_dm)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_ckd_post)+comp_util_ckd*prev_ckd_post)*alive_post)/dim(alive_post)[1]*10000-rowSums((1*(1-prev_ckd)+comp_util_ckd*prev_ckd)*alive)/dim(alive)[1]*10000,
+                          rowSums((1*(1-prev_den_post)+comp_util_den*prev_den_post)*alive_post)/dim(alive_post)[1]*10000-rowSums((1*(1-prev_den)+comp_util_den*prev_den)*alive)/dim(alive)[1]*10000,
+                          white,black,asian,other,hisp,mgmt,whcol,blcol)
+colnames(dfqalysper10k)=c('obese','chd','str','dm','ckd','den','obese_post','chd_post','str_post','dm_post','ckd_post','den_post','obese_postmpre','chd_postmpre','str_postmpre','dm_postmpre','ckd_postmpre','den_postmpre','white','black','asian','other','hisp','mgmt','whcol','blcol')
+obese_qalys_pre=summaryBy(obese~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6] #other non-hisp, hisp, asian, black, white; mean then sd
+chd_qalys_pre=summaryBy(chd~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+str_qalys_pre=summaryBy(str~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+dm_qalys_pre=summaryBy(dm~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+ckd_qalys_pre=summaryBy(ckd~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+den_qalys_pre=summaryBy(den~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+obese_qalys_post=summaryBy(obese_post~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+chd_qalys_post=summaryBy(chd_post~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+str_qalys_post=summaryBy(str_post~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+dm_qalys_post=summaryBy(dm_post~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+ckd_qalys_post=summaryBy(ckd_post~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+den_qalys_post=summaryBy(den_post~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+obese_qalys_postmpre=summaryBy(obese_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+chd_qalys_postmpre=summaryBy(chd_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+str_qalys_postmpre=summaryBy(str_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+dm_qalys_postmpre=summaryBy(dm_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+ckd_qalys_postmpre=summaryBy(ckd_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+den_qalys_postmpre=summaryBy(den_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
+
+
+
+dfsub = data.frame(rowSums(qalys)/dim(alive)[1]*10000,rowSums(qalys_post)/dim(alive_post)[1]*10000,rowSums(qalys_post)/dim(alive_post)[1]*10000-rowSums(qalys)/dim(alive)[1]*10000,rowSums(costs)/dim(alive)[1]*10000,rowSums(costs_post)/dim(alive_post)[1]*10000,rowSums(costs_post)/dim(alive_post)[1]*10000-rowSums(costs)/dim(alive)[1]*10000,white,black,asian,other,hisp,mgmt,whcol,blcol)
+colnames(dfsub)=c('qalyspre','qalyspost','qalyspostmpre','costspre','costspost','costspostmpre','white','black','asian','other','hisp','mgmt','whcol','blcol')
+qalys_pre=summaryBy(qalyspre~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
+qalys_post=summaryBy(qalyspost~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
+qalys_postmpre=summaryBy(qalyspostmpre~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
+costs_pre=summaryBy(costspre~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
+costs_post=summaryBy(costspost~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
+costs_postmpre=summaryBy(costspostmpre~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
+
+
+
+}
+end = Sys.time() - start
+print(end) 
+```
+
+# summary stats
+
+```{r summary}
+
+
+df = (cbind(tot_qalys_10,tot_costs_10, tot_qalys_lt, tot_costs_lt, tot_qalys_10_post, tot_costs_10_post, tot_qalys_lt_post, tot_costs_lt_post, icer_10, icer_lt))
+colMeans(df)
+colSds(df)
+readr::write_csv(as.data.frame(df), path = "~/Box/Analytics Team/Research/Research projects/SSB ban/df.csv")
+
+```
