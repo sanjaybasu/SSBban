@@ -323,6 +323,27 @@ dm_cost_postmpre=summaryBy(dm_postmpre~white+black+asian+other+hisp,data = dfcos
 ckd_cost_postmpre=summaryBy(ckd_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
 den_cost_postmpre=summaryBy(den_postmpre~white+black+asian+other+hisp,data = dfcostsper10k,FUN=c(mean))[,6]
 
+
+obese_cost_pre_class = summaryBy(obese~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+chd_cost_pre_class = summaryBy(chd~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+str_cost_pre_class = summaryBy(str~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+dm_cost_pre_class = summaryBy(dm~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+ckd_cost_pre_class = summaryBy(ckd~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+den_cost_pre_class = summaryBy(den~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+obese_cost_post_class = summaryBy(obese_post~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+chd_cost_post_class = summaryBy(chd_post~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+str_cost_post_class = summaryBy(str_post~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+dm_cost_post_class = summaryBy(dm_post~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+ckd_cost_post_class = summaryBy(ckd_post~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+den_cost_poso_class = summaryBy(den_post~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+obese_cost_postmpre_class = summaryBy(obese_postmpre~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+chd_cost_postmpre_class = summaryBy(chd_postmpre~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+str_cost_postmpre_class = summaryBy(str_postmpre~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+dm_cost_postmpre_class = summaryBy(dm_postmpre~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+ckd_cost_postmpre_class = summaryBy(ckd_postmpre~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+den_cost_postmpre_class = summaryBy(den_postmpre~mgmt+whcol+blcol,data = dfcostsper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+
+
 # add in same by occ class
 
 dfqalysper10k = data.frame(rowSums((1*(1-prev_obese)+comp_util_obese*prev_obese)*alive)/dim(alive)[1]*10000,
@@ -364,6 +385,24 @@ dm_qalys_postmpre=summaryBy(dm_postmpre~white+black+asian+other+hisp,data = dfqa
 ckd_qalys_postmpre=summaryBy(ckd_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
 den_qalys_postmpre=summaryBy(den_postmpre~white+black+asian+other+hisp,data = dfqalysper10k,FUN=c(mean))[,6]
 
+obese_qalys_pre_class = summaryBy(obese~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+chd_qalys_pre_class = summaryBy(chd~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+str_qalys_pre_class = summaryBy(str~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+dm_qalys_pre_class = summaryBy(dm~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+ckd_qalys_pre_class = summaryBy(ckd~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+den_qalys_pre_class = summaryBy(den~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+obese_qalys_post_class = summaryBy(obese_post~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+chd_qalys_post_class = summaryBy(chd_post~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+str_qalys_post_class = summaryBy(str_post~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+dm_qalys_post_class = summaryBy(dm_post~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+ckd_qalys_post_class = summaryBy(ckd_post~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+den_qalys_poso_class = summaryBy(den_post~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+obese_qalys_postmpre_class = summaryBy(obese_postmpre~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+chd_qalys_postmpre_class = summaryBy(chd_postmpre~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+str_qalys_postmpre_class = summaryBy(str_postmpre~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+dm_qalys_postmpre_class = summaryBy(dm_postmpre~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+ckd_qalys_postmpre_class = summaryBy(ckd_postmpre~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
+den_qalys_postmpre_class = summaryBy(den_postmpre~mgmt+whcol+blcol,data = dfqalysper10k,FUN=c(mean))[,4] #none, blcol, whcol, wh+bl, mgmt
 
 
 dfsub = data.frame(rowSums(qalys)/dim(alive)[1]*10000,rowSums(qalys_post)/dim(alive_post)[1]*10000,rowSums(qalys_post)/dim(alive_post)[1]*10000-rowSums(qalys)/dim(alive)[1]*10000,rowSums(costs)/dim(alive)[1]*10000,rowSums(costs_post)/dim(alive_post)[1]*10000,rowSums(costs_post)/dim(alive_post)[1]*10000-rowSums(costs)/dim(alive)[1]*10000,white,black,asian,other,hisp,mgmt,whcol,blcol)
@@ -375,6 +414,12 @@ costs_pre=summaryBy(costspre~white+black+asian+other+hisp,data = dfsub,FUN=c(mea
 costs_post=summaryBy(costspost~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
 costs_postmpre=summaryBy(costspostmpre~white+black+asian+other+hisp,data = dfsub,FUN=c(mean))[,6]
 
+qalys_pre_class=summaryBy(qalyspre~mgmt+whcol+blcol,data = dfsub,FUN=c(mean))[,4]
+qalys_post_class=summaryBy(qalyspost~mgmt+whcol+blcol,data = dfsub,FUN=c(mean))[,4]
+qalys_postmpre_class=summaryBy(qalyspostmpre~mgmt+whcol+blcol,data = dfsub,FUN=c(mean))[,4]
+costs_pre_class=summaryBy(costspre~mgmt+whcol+blcol,data = dfsub,FUN=c(mean))[,4]
+costs_post_class=summaryBy(costspost~mgmt+whcol+blcol,data = dfsub,FUN=c(mean))[,4]
+costs_postmpre_class=summaryBy(costspostmpre~mgmt+whcol+blcol,data = dfsub,FUN=c(mean))[,4]
 
 
 }
