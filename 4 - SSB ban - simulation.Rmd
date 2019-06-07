@@ -7,10 +7,10 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages('tidyverse', repos='http://cran.us.r-project.org')
-install.packages('matrixStats', repos='http://cran.us.r-project.org')
-install.packages('svMisc', repos='http://cran.us.r-project.org')
-install.packages('doBy', repos='http://cran.us.r-project.org')
+# install.packages('tidyverse', repos='http://cran.us.r-project.org')
+# install.packages('matrixStats', repos='http://cran.us.r-project.org')
+# install.packages('svMisc', repos='http://cran.us.r-project.org')
+# install.packages('doBy', repos='http://cran.us.r-project.org')
 library(tidyverse)
 library(matrixStats)
 library(svMisc)
@@ -182,10 +182,10 @@ den_qalys_postmpre_class = matrix(0,ncol=iters,nrow=8)
 
 
 qalys_pre=matrix(0,ncol=iters,nrow=5)
-qalys_post=matrix(0,ncol=iters,nrow=5)
+qalys_poster=matrix(0,ncol=iters,nrow=5)
 qalys_postmpre=matrix(0,ncol=iters,nrow=5)
 costs_pre=matrix(0,ncol=iters,nrow=5)
-costs_post=matrix(0,ncol=iters,nrow=5)
+costs_poster=matrix(0,ncol=iters,nrow=5)
 costs_postmpre=matrix(0,ncol=iters,nrow=5)
 
 qalys_pre_class=matrix(0,ncol=iters,nrow=8)
@@ -500,10 +500,10 @@ den_qalys_postmpre_class[,j]= summaryBy(den_postmpre~mgmt+whcol+blcol,data= dfqa
 dfsub = data.frame(rowSums(qalys)/dim(alive)[1]*10000,rowSums(qalys_post)/dim(alive_post)[1]*10000,rowSums(qalys_post)/dim(alive_post)[1]*10000-rowSums(qalys)/dim(alive)[1]*10000,rowSums(costs)/dim(alive)[1]*10000,rowSums(costs_post)/dim(alive_post)[1]*10000,rowSums(costs_post)/dim(alive_post)[1]*10000-rowSums(costs)/dim(alive)[1]*10000,white,black,asian,other,hisp,mgmt,whcol,blcol)
 colnames(dfsub)=c('qalyspre','qalyspost','qalyspostmpre','costspre','costspost','costspostmpre','white','black','asian','other','hisp','mgmt','whcol','blcol')
 qalys_pre[,j]=summaryBy(qalyspre~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
-qalys_post[,j]=summaryBy(qalyspost~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
+qalys_poster[,j]=summaryBy(qalyspost~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
 qalys_postmpre[,j]=summaryBy(qalyspostmpre~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
 costs_pre[,j]=summaryBy(costspre~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
-costs_post[,j]=summaryBy(costspost~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
+costs_poster[,j]=summaryBy(costspost~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
 costs_postmpre[,j]=summaryBy(costspostmpre~white+black+asian+other+hisp,data= dfsub,FUN=c(mean))[,6]
 
 qalys_pre_class[,j]=summaryBy(qalyspre~mgmt+whcol+blcol,data= dfsub,FUN=c(mean))[,4]
@@ -523,7 +523,7 @@ print(end)
 
 ```{r summary}
 
-dfsub = cbind(obese_cost_pre, 
+dfsub = rbind(obese_cost_pre, 
 chd_cost_pre, 
 str_cost_pre, 
 dm_cost_pre, 
@@ -596,10 +596,10 @@ dm_qalys_postmpre_class ,
 ckd_qalys_postmpre_class , 
 den_qalys_postmpre_class , 
 qalys_pre, 
-qalys_post, 
+qalys_poster, 
 qalys_postmpre, 
 costs_pre, 
-costs_post, 
+costs_poster, 
 costs_postmpre, 
 qalys_pre_class, 
 qalys_post_class, 
@@ -607,13 +607,13 @@ qalys_postmpre_class,
 costs_pre_class, 
 costs_post_class, 
 costs_postmpre_class)
-colMeans(dfsub)
-colSds(dfsub)
-readr::write_csv(as.data.frame(dfsub), path = "dfsub.csv")
+rowMeans(dfsub)
+rowSds(dfsub)
+readr::write_csv(as.data.frame(dfsub), path = "..results/dfsub.csv")
 
 df = (cbind(tot_qalys_10,tot_costs_10, tot_qalys_lt, tot_costs_lt, tot_qalys_10_post, tot_costs_10_post, tot_qalys_lt_post, tot_costs_lt_post, icer_10, icer_lt))
 colMeans(df)
 colSds(df)
-readr::write_csv(as.data.frame(df), path = "df.csv")
+readr::write_csv(as.data.frame(df), path = "..results/df.csv")
 
 ```
