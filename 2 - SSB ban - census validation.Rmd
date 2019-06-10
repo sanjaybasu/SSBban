@@ -21,7 +21,7 @@ library(tidycensus)
 for face validity
 
 ```{r ACS 2017 download}
-census_api_key("502c9ebce6cbb78e55b5799866a5771ad6411885", install=T, overwrite=T)
+census_api_key("INSERT YOUR API KEY HERE, SEE: https://api.census.gov/data/key_signup.html", install=T, overwrite=T)
 readRenviron("~/.Renviron")
 v17 <- load_variables(2017, "acs5", cache = TRUE)
 
