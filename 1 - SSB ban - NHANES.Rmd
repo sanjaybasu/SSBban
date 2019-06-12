@@ -9,15 +9,21 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages('tidyverse', repos='http://cran.us.r-project.org')
-install.packages('nhanesA', repos='http://cran.us.r-project.org')
-install.packages('furrr', repos='http://cran.us.r-project.org')
-install.packages('mice', repos='http://cran.us.r-project.org')
+# install.packages('dplyr', repos='http://cran.us.r-project.org')
+# install.packages('tidyr', repos='http://cran.us.r-project.org')
+# install.packages('purrr', repos='http://cran.us.r-project.org')
+# install.packages('nhanesA', repos='http://cran.us.r-project.org')
+# install.packages('furrr', repos='http://cran.us.r-project.org')
+# install.packages('mice', repos='http://cran.us.r-project.org')
+# install.packages('survey', repos='http://cran.us.r-project.org')
 
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(purrr)
 library(nhanesA)
 library(furrr)
 library(mice)
+library(survey)
 ```
 
 ## NHANES import
@@ -33,8 +39,12 @@ demo_g = nhanes('DEMO_G') %>%
          black = (RIDRETH3==4),
          asian = (RIDRETH3==6),
          other = ((RIDRETH3!=3)&(RIDRETH3!=4)&(RIDRETH3!=6)),
-         hisp = (RIDRETH3<=2)) %>%
-  select(SEQN, age, female, white, black, asian, other, hisp)
+         hisp = (RIDRETH3<=2),
+         intweight = WTINT2YR/3,
+         mecweight = WTMEC2YR/3,
+         psu = SDMVPSU,
+         strata = SDMVSTRA) %>%
+  select(SEQN, age, female, white, black, asian, other, hisp, intweight, mecweight, psu, strata)
 hiq_g = nhanes('HIQ_G') %>%
   mutate(privins = (HIQ031A==14),
          privins = replace_na(privins, 0)) %>%
@@ -64,7 +74,8 @@ rxq_rx_g = nhanes('RXQ_RX_G') %>%
 ghb_g = nhanes('GHB_G') %>%
   select(SEQN, LBXGH)
 glu_g = nhanes('GLU_G') %>%
-  select(SEQN, LBXGLU)
+  mutate(fastweight = WTSAF2YR/3) %>%
+  select(SEQN, LBXGLU,fastweight)
 ogtt_g = nhanes('OGTT_G') %>%
   select(SEQN, LBXGLT)
 diq_g = nhanes('DIQ_G') %>%
@@ -74,7 +85,7 @@ diq_g = nhanes('DIQ_G') %>%
   full_join(rxq_rx_g, by="SEQN") %>%
   mutate(dm = ((LBXGH>=6.5)|(LBXGLU>=126)|(LBXGLT>=200)|(DIQ010==1)|(dmmed==1)),
          dm = replace_na(dm, 0)) %>%
-  select(SEQN,dm)
+  select(SEQN,dm,fastweight)
 biopro_g = nhanes('BIOPRO_G') %>%
   select(SEQN, LBXSCR)
 kiq_u_g = nhanes('KIQ_U_G') %>%
@@ -91,8 +102,13 @@ kiq_u_g = nhanes('KIQ_U_G') %>%
            (0.993^age)*
            (1.018*female+1*(1-female))*
            (1.159*black+1*(1-black)),
-         ckd = (egfr<90)) %>%
-  select(SEQN, ckd)
+         egfr_mdrd = 186 * (scr^(-1.154))*
+           (age^(-0.203))*
+          (1.212*black+1*(1-black))*
+          (0.742*female+1*(1-female)),
+         ckd = (egfr<90),
+         ckd_mdrd = (egfr_mdrd<90)) %>%
+  select(SEQN, ckd, ckd_mdrd)
 ohxref_g = nhanes('OHXREF_G') %>%
   mutate(dental = (OHAROCDT==1)&(OHAROCGP==1)) %>%
   select(SEQN, dental)
@@ -106,8 +122,12 @@ demo_h = nhanes('DEMO_H') %>%
          black = (RIDRETH3==4),
          asian = (RIDRETH3==6),
          other = ((RIDRETH3!=3)&(RIDRETH3!=4)&(RIDRETH3!=6)),
-         hisp = (RIDRETH3<=2)) %>%
-  select(SEQN, age, female, white, black, asian, other, hisp)
+         hisp = (RIDRETH3<=2),
+         intweight = WTINT2YR/3,
+         mecweight = WTMEC2YR/3,
+         psu = SDMVPSU,
+         strata = SDMVSTRA) %>%
+  select(SEQN, age, female, white, black, asian, other, hisp, intweight, mecweight, psu, strata)
 hiq_h = nhanes('HIQ_H') %>%
   mutate(privins = (HIQ031A==14),
          privins = replace_na(privins, 0)) %>%
@@ -137,7 +157,8 @@ rxq_rx_h = nhanes('RXQ_RX_H') %>%
 ghb_h = nhanes('GHB_H') %>%
   select(SEQN, LBXGH)
 glu_h = nhanes('GLU_H') %>%
-  select(SEQN, LBXGLU)
+  mutate(fastweight = WTSAF2YR/3) %>%
+  select(SEQN, LBXGLU,fastweight)
 ogtt_h = nhanes('OGTT_H') %>%
   select(SEQN, LBXGLT)
 diq_h = nhanes('DIQ_H') %>%
@@ -147,7 +168,7 @@ diq_h = nhanes('DIQ_H') %>%
   full_join(rxq_rx_h, by="SEQN") %>%
   mutate(dm = ((LBXGH>=6.5)|(LBXGLU>=126)|(LBXGLT>=200)|(DIQ010==1)|(dmmed==1)),
          dm = replace_na(dm, 0)) %>%
-  select(SEQN,dm)
+  select(SEQN,dm,fastweight)
 biopro_h = nhanes('BIOPRO_H') %>%
   select(SEQN, LBXSCR)
 kiq_u_h = nhanes('KIQ_U_H') %>%
@@ -157,15 +178,20 @@ kiq_u_h = nhanes('KIQ_U_H') %>%
          kappa = 0.7*female + 0.9 *(1-female),
          alpha = -0.329*female -0.411*(1-female),
          sk = scr/kappa,
-         minsk = sk*(sk<1)+1*(sk>=1),
+         minsk= sk*(sk<1)+1*(sk>=1),
          maxsk = sk*(sk>=1)+1*(sk<1),
          egfr = 141 *(minsk^alpha) *
            (maxsk^(-1.209))*
            (0.993^age)*
            (1.018*female+1*(1-female))*
            (1.159*black+1*(1-black)),
-         ckd = (egfr<90)) %>%
-  select(SEQN, ckd)
+         egfr_mdrd = 186 * (scr^(-1.154))*
+           (age^(-0.203))*
+          (1.212*black+1*(1-black))*
+          (0.742*female+1*(1-female)),
+         ckd = (egfr<90),
+         ckd_mdrd = (egfr_mdrd<90)) %>%
+  select(SEQN, ckd, ckd_mdrd)
 ohxref_h = nhanes('OHXREF_H') %>%
   mutate(dental = (OHAROCDT==1)&(OHAROCGP==1)) %>%
   select(SEQN, dental)
@@ -179,8 +205,12 @@ demo_i = nhanes('DEMO_I') %>%
          black = (RIDRETH3==4),
          asian = (RIDRETH3==6),
          other = ((RIDRETH3!=3)&(RIDRETH3!=4)&(RIDRETH3!=6)),
-         hisp = (RIDRETH3<=2)) %>%
-  select(SEQN, age, female, white, black, asian, other, hisp)
+         hisp = (RIDRETH3<=2),
+         intweight = WTINT2YR/3,
+         mecweight = WTMEC2YR/3,
+         psu = SDMVPSU,
+         strata = SDMVSTRA) %>%
+  select(SEQN, age, female, white, black, asian, other, hisp, intweight, mecweight, psu, strata)
 hiq_i = nhanes('HIQ_I') %>%
   mutate(privins = (HIQ031A==14),
          privins = replace_na(privins, 0)) %>%
@@ -210,7 +240,8 @@ rxq_rx_i = nhanes('RXQ_RX_I') %>%
 ghb_i = nhanes('GHB_I') %>%
   select(SEQN, LBXGH)
 glu_i = nhanes('GLU_I') %>%
-  select(SEQN, LBXGLU)
+  mutate(fastweight = WTSAF2YR/3) %>%
+  select(SEQN, LBXGLU,fastweight)
 ogtt_i = nhanes('OGTT_I') %>%
   select(SEQN, LBXGLT)
 diq_i = nhanes('DIQ_I') %>%
@@ -220,7 +251,7 @@ diq_i = nhanes('DIQ_I') %>%
   full_join(rxq_rx_i, by="SEQN") %>%
   mutate(dm = ((LBXGH>=6.5)|(LBXGLU>=126)|(LBXGLT>=200)|(DIQ010==1)|(dmmed==1)),
          dm = replace_na(dm, 0)) %>%
-  select(SEQN,dm)
+  select(SEQN,dm,fastweight)
 biopro_i = nhanes('BIOPRO_I') %>%
   select(SEQN, LBXSCR)
 kiq_u_i = nhanes('KIQ_U_I') %>%
@@ -237,8 +268,13 @@ kiq_u_i = nhanes('KIQ_U_I') %>%
            (0.993^age)*
            (1.018*female+1*(1-female))*
            (1.159*black+1*(1-black)),
-         ckd = (egfr<90)) %>%
-  select(SEQN, ckd)
+         egfr_mdrd = 186 * (scr^(-1.154))*
+           (age^(-0.203))*
+          (1.212*black+1*(1-black))*
+          (0.742*female+1*(1-female)),
+         ckd = (egfr<90),
+         ckd_mdrd = (egfr_mdrd<90)) %>%
+  select(SEQN, ckd, ckd_mdrd)
 ohxref_i = nhanes('OHXREF_I') %>%
   mutate(dental = (OHAROCDT==1)&(OHAROCGP==1)) %>%
   select(SEQN, dental)
@@ -275,12 +311,73 @@ nhanes15 = ocq_i %>%
   left_join(mcq_i, by="SEQN") %>%
   left_join(diq_i, by="SEQN") %>%
   left_join(kiq_u_i, by="SEQN") %>%
-  left_join(ohxref_i, by="SEQN")
+  left_join(ohxref_i, by="SEQN") %>%
+  mutate(obese = (bmi>=30))
 
-nhanes = bind_rows(list(nhanes11, nhanes13, nhanes15))
-summary(nhanes)
+nhanes = bind_rows(list(nhanes11, nhanes13, nhanes15)) 
+nhanes$mgmt <- as.factor(nhanes$mgmt)
+nhanes$blcol <- as.factor(nhanes$blcol)
+nhanes$whcol <- as.factor(nhanes$whcol)
+nhanes$female <- as.factor(nhanes$female)
+nhanes$white <- as.factor(nhanes$white)
+nhanes$black <- as.factor(nhanes$black)
+nhanes$asian <- as.factor(nhanes$asian)
+nhanes$other <- as.factor(nhanes$other)
+nhanes$hisp <- as.factor(nhanes$hisp)
+nhanes$privins <- as.factor(nhanes$privins)
+nhanes$chd <- as.factor(nhanes$chd)
+nhanes$str <- as.factor(nhanes$str)
+nhanes$dm <- as.factor(nhanes$dm)
+nhanes$ckd <- as.factor(nhanes$ckd)
+nhanes$ckd_mdrd <- as.factor(nhanes$ckd_mdrd)
+nhanes$dental <- as.factor(nhanes$dental)
+nhanes$obese <- as.factor(nhanes$obese)
+
+nhanesDesign <- svydesign(id      = ~psu,
+                          strata  = ~strata,
+                          weights = ~intweight,
+                          nest    = TRUE,
+                          data    = nhanes)
+nhanes_mec = nhanes %>%
+  filter(mecweight!='NA')
+nhanesDesign_mec <- svydesign(id      = ~psu,
+                          strata  = ~strata,
+                          weights = ~mecweight,
+                          nest    = TRUE,
+                          data    = nhanes_mec)
+nhanes_lab = nhanes %>%
+  filter(fastweight!='NA')
+nhanesDesign_lab <- svydesign(id      = ~psu,
+                          strata  = ~strata,
+                          weights = ~fastweight,
+                          nest    = TRUE,
+                          data    = nhanes_lab)
+
+summary(nhanesDesign)
+summary(nhanesDesign_mec)
+summary(nhanesDesign_lab)
+
 ```
+## weighted stats
+```{r weighted stats}
+svymean(~age, nhanesDesign, na.rm = TRUE)
+svyquantile(~age, nhanesDesign, quantiles=c(.25,.75),na.rm = TRUE)
+svymean(~female, nhanesDesign, na.rm = TRUE)
+svymean(~white, nhanesDesign, na.rm = TRUE)
+svymean(~black, nhanesDesign, na.rm = TRUE)
+svymean(~hisp, nhanesDesign, na.rm = TRUE)
+svymean(~mgmt, nhanesDesign, na.rm = TRUE)
+svymean(~whcol, nhanesDesign, na.rm = TRUE)
+svymean(~blcol, nhanesDesign, na.rm = TRUE)
+svymean(~hisp, nhanesDesign, na.rm = TRUE)
+svymean(~obese, nhanesDesign_mec, na.rm = TRUE)
+svymean(~chd, nhanesDesign_mec, na.rm = TRUE)
+svymean(~str, nhanesDesign_mec, na.rm = TRUE)
+svymean(~dm, nhanesDesign_mec, na.rm = TRUE)
+svymean(~ckd, nhanesDesign_lab, na.rm = TRUE)
+svymean(~dental, nhanesDesign_mec, na.rm = TRUE)
 
+```
 ## Imputation
 
 10-fold multiple imputation w/ chained equations
@@ -289,7 +386,7 @@ summary(nhanes)
 set.seed(123)
 plan(multiprocess)
 start = Sys.time()
-imp_nhanes = future_map(rep(1, 10), ~mice(data = nhanes, m = ., maxit = 100, printFlag = FALSE))
+imp_nhanes = future_map(rep(1, 10), ~mice(data = nhanes, m = ., maxit = 100, imputationWeights = nhanes$mecweight, printFlag = FALSE))
 end = Sys.time() - start
 print(end)
 imp_nhanes_complete = map(imp_nhanes, mice::complete)
