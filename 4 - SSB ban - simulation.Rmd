@@ -336,7 +336,7 @@ qalys_post = (1*(1-prev_obese_post)+comp_util_obese*prev_obese_post+
 costs_obese = 1429*1.27 #2006 costs updated to 2019, Exhibit 1 of: https://www.healthaffairs.org/doi/pdf/10.1377/hlthaff.28.5.w822
 
 #weighted by typical duration of employed vs retirement for private vs Medicare (24 vs 13)
-costs_chd = 3966*1.08  # 2015 costs updated to 2019; from MEPS: https://meps.ahrq.gov/mepstrends/hc_cond/
+costs_chd = 3966*1.08*24/(24+13)+2056*1.08*13/(24+13)  # 2015 costs updated to 2019; from MEPS: https://meps.ahrq.gov/mepstrends/hc_cond/
 costs_str = 7149*1.08*24/(24+13)+9548*1.08*13/(24+13) # insufficient sample from employed, using not employed stat
 costs_dm = 2700*1.08*24/(24+13)+2893*1.08*13/(24+13)
 costs_ckd = 4497*1.08*24/(24+13)+5301*1.08*13/(24+13)
