@@ -317,7 +317,7 @@ util_ckd = 1-c(0, 0, 0, .104, .024, .571)
 dist_ckd = c((0.199-0.001)/3, (0.199-0.001)/3,(0.199-0.001)/3, 0.1029/100/3, 0.1029/100/3, 0.1029/100/3) #https://nccd.cdc.gov/CKD/detail.aspx?Qnum=Q372
 comp_util_ckd  = sum(util_ckd *dist_ckd /(sum(dist_ckd )))
 
-comp_util_den = 0.01
+comp_util_den = 1-0.01
 
 
 qalys = (1*(1-prev_obese)+comp_util_obese*prev_obese+
