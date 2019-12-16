@@ -9,13 +9,13 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# install.packages('dplyr', repos='http://cran.us.r-project.org')
-# install.packages('tidyr', repos='http://cran.us.r-project.org')
-# install.packages('purrr', repos='http://cran.us.r-project.org')
-# install.packages('nhanesA', repos='http://cran.us.r-project.org')
-# install.packages('furrr', repos='http://cran.us.r-project.org')
-# install.packages('mice', repos='http://cran.us.r-project.org')
-# install.packages('survey', repos='http://cran.us.r-project.org')
+install.packages('dplyr', repos='http://cran.us.r-project.org')
+install.packages('tidyr', repos='http://cran.us.r-project.org')
+install.packages('purrr', repos='http://cran.us.r-project.org')
+install.packages('nhanesA', repos='http://cran.us.r-project.org')
+install.packages('furrr', repos='http://cran.us.r-project.org')
+install.packages('mice', repos='http://cran.us.r-project.org')
+install.packages('survey', repos='http://cran.us.r-project.org')
 
 library(dplyr)
 library(tidyr)
@@ -24,6 +24,7 @@ library(nhanesA)
 library(furrr)
 library(mice)
 library(survey)
+library(readr)
 ```
 
 ## NHANES import
@@ -50,7 +51,7 @@ hiq_g = nhanes('HIQ_G') %>%
          privins = replace_na(privins, 0)) %>%
   select(SEQN, privins)
 ocq_g = nhanes('OCQ_G') %>%
-  filter((OCD231 <21)&(OCD150 ==1)) %>%
+  filter((OCD231 ==16)&(OCD150 ==1)) %>%
   mutate(mgmt = (OCD241<=7),
          blcol = (((OCD241>=12)&(OCD241<=15))|((OCD241>=18)&(OCD241<=22))),
          whcol = (((OCD241>=8)&(OCD241<=11))|((OCD241>=16)&(OCD241<=17)))) %>%
@@ -393,6 +394,6 @@ imp_nhanes_complete = map(imp_nhanes, mice::complete)
 imp_nhanes = map2(.x = seq(1,10), .y = imp_nhanes_complete, ~mutate(.y, imp_id = as.character(.x)))
 imp_nhanes = bind_rows(imp_nhanes)
 summary(imp_nhanes)
-write_csv(imp_nhanes, path = "~/Box/Analytics Team/Research/Research projects/SSB ban/imp_nhanes.csv")
+write_csv(imp_nhanes, path = "~/imp_nhanes.csv")
 
 ```

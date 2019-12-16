@@ -7,12 +7,14 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# install.packages('dplyr', repos='http://cran.us.r-project.org')
-# install.packages('tidyr', repos='http://cran.us.r-project.org')
-# install.packages('purrr', repos='http://cran.us.r-project.org')
-# install.packages('matrixStats', repos='http://cran.us.r-project.org')
-# install.packages('svMisc', repos='http://cran.us.r-project.org')
-# install.packages('doBy', repos='http://cran.us.r-project.org')
+install.packages('readr', repos='http://cran.us.r-project.org')
+install.packages('dplyr', repos='http://cran.us.r-project.org')
+install.packages('tidyr', repos='http://cran.us.r-project.org')
+install.packages('purrr', repos='http://cran.us.r-project.org')
+install.packages('matrixStats', repos='http://cran.us.r-project.org')
+install.packages('svMisc', repos='http://cran.us.r-project.org')
+install.packages('doBy', repos='http://cran.us.r-project.org')
+library(readr)
 library(dplyr)
 library(tidyr)
 library(purrr)
@@ -31,7 +33,7 @@ incidence and mortality organized as: male age 15-49, female age 15-49, male age
 delta: RRR after SSB ban
 
 ```{r import from NHANES.R}
-imp_nhanes = read_csv("~/Box/Analytics Team/Research/Research projects/SSB ban/imp_nhanes.csv")
+imp_nhanes = read_csv("~/imp_nhanes.csv")
 yrs = 100
 
 alive = matrix(1,nrow=length(imp_nhanes$SEQN),ncol=yrs)
@@ -90,7 +92,7 @@ delta_mort = (1-0.17/12*delta_ssb) # 0.24 for 12oz serving
 ```
 
 ```{r iters}
-iters = 1000
+iters = 10
 attach(imp_nhanes)
 n= length(imp_nhanes$SEQN)
 tot_qalys_10 = rep(0,iters)
@@ -613,11 +615,12 @@ costs_post_class,
 costs_postmpre_class)
 rowMeans(dfsub)
 rowSds(dfsub)
-readr::write_csv(as.data.frame(dfsub), path = "dfsub.csv")
+readr::write_csv(as.data.frame(dfsub), path = "dfsubsm.csv")
 
 df = (cbind(tot_qalys_10,tot_costs_10, tot_qalys_lt, tot_costs_lt, tot_qalys_10_post, tot_costs_10_post, tot_qalys_lt_post, tot_costs_lt_post, icer_10, icer_lt))
 colMeans(df)
 colSds(df)
-readr::write_csv(as.data.frame(df), path = "df.csv")
+readr::write_csv(as.data.frame(df), path = "dfsm.csv")
 
+save.image(file="SSBbansim.RData")
 ```

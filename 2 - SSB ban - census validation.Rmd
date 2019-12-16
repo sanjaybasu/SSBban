@@ -9,10 +9,10 @@ output:
   
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages('tidyverse', repos='http://cran.us.r-project.org')
+install.packages('dplyr', repos='http://cran.us.r-project.org')
 install.packages('tidycensus', repos='http://cran.us.r-project.org')
 
-library(tidyverse)
+library(dplyr)
 library(tidycensus)
 ```
 
@@ -21,7 +21,7 @@ library(tidycensus)
 for face validity
 
 ```{r ACS 2017 download}
-census_api_key("INSERT YOUR API KEY HERE, SEE: https://api.census.gov/data/key_signup.html", install=T, overwrite=T)
+census_api_key("502c9ebce6cbb78e55b5799866a5771ad6411885", install=T, overwrite=T)
 readRenviron("~/.Renviron")
 v17 <- load_variables(2017, "acs5", cache = TRUE)
 
@@ -67,7 +67,7 @@ emp$prop = emp$estimate/sum(emp$estimate)
 T-test for difference, with comp matrix as final results by age/sex category
 
 ```{r NHANES vs Census}
-impnhanes = read_csv("imp_nhanes.csv")
+imp_nhanes = read_csv("~/Box/Analytics Team/Research/Research projects/SSB ban/imp_nhanes.csv")
 tally = impnhanes %>%
   mutate(m_16_19 = (female==0)&(age>=16)&(age<=19),
          m_20_21 = (female==0)&(age>=20)&(age<=21),
